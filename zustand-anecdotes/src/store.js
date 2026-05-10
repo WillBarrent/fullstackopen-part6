@@ -1,36 +1,43 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import anecdoteService from "./services/anecdotes";
 
-const useAnecdoteStore = create((set) => ({
-  anecdotes: [],
-  filter: "",
-  actions: {
-    initialize: (anecdotes) =>
-      set(() => ({
-        anecdotes,
-      })),
-    setFilter: (value) => set(() => ({ filter: value })),
-    create: (anecdote) =>
-      set((state) => ({ anecdotes: state.anecdotes.concat(anecdote) })),
-    remove: async (id) => {
-      await anecdoteService.remove(id);
-      set((state) => ({
-        anecdotes: state.anecdotes.filter((anecdote) => anecdote.id !== id),
-      }));
+const useAnecdoteStore = create(
+  devtools((set) => ({
+    anecdotes: [],
+    filter: "",
+    actions: {
+      initialize: async () => {
+        const anecdotes = await anecdoteService.getAll();
+        set(() => ({ anecdotes }));
+      },
+      setFilter: (value) => set(() => ({ filter: value })),
+      create: async (anecdote) => {
+        const newAnecdote = await anecdoteService.create(anecdote);
+        set((state) => ({ anecdotes: state.anecdotes.concat(newAnecdote) }));
+      },
+      remove: async (id) => {
+        await anecdoteService.remove(id);
+        set((state) => ({
+          anecdotes: state.anecdotes.filter((anecdote) => anecdote.id !== id),
+        }));
+      },
+      vote: async (id) => {
+        const anecdote = useAnecdoteStore
+          .getState()
+          .anecdotes.find((anecdote) => anecdote.id === id);
+        const updated = await anecdoteService.update(id, anecdote);
+        set((state) => ({
+          anecdotes: state.anecdotes.map((anecdote) =>
+            anecdote.id === id ? updated : anecdote,
+          ),
+        }));
+      },
     },
-    vote: async (id) => {
-      const anecdote = useAnecdoteStore
-        .getState()
-        .anecdotes.find((anecdote) => anecdote.id === id);
-      const updated = await anecdoteService.update(id, anecdote);
-      set((state) => ({
-        anecdotes: state.anecdotes.map((anecdote) =>
-          anecdote.id === id ? updated : anecdote,
-        ),
-      }));
-    },
-  },
-}));
+  })),
+);
+
+export default useAnecdoteStore;
 
 const useNotificationStore = create((set) => ({
   notification: "",
@@ -44,7 +51,7 @@ export const useAnecdotes = () => {
   const filter = useAnecdoteStore((state) => state.filter);
 
   if (filter === "") {
-    return anecdotes;
+    return anecdotes.toSorted((a, b) => b.votes - a.votes);
   }
 
   return anecdotes

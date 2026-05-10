@@ -4,7 +4,6 @@ import {
   useAnecdotes,
   useNotificationActions,
 } from "../store";
-import anecdoteService from "../services/anecdotes";
 
 const AnecdoteList = () => {
   const anecdotes = useAnecdotes();
@@ -12,7 +11,7 @@ const AnecdoteList = () => {
   const { setNotification } = useNotificationActions();
 
   useEffect(() => {
-    anecdoteService.getAll().then((anecdotes) => initialize(anecdotes));
+    initialize();
   }, [initialize]);
 
   const voteForAnecdote = (content, id) => {
@@ -27,7 +26,6 @@ const AnecdoteList = () => {
   return (
     <div>
       {anecdotes
-        .toSorted((a, b) => b.votes - a.votes)
         .map((anecdote) => (
           <div key={anecdote.id}>
             <div>{anecdote.content}</div>
